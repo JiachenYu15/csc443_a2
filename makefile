@@ -1,0 +1,6 @@
+#Makefile
+CC = g++
+
+all:
+
+
