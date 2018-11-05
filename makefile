@@ -1,6 +1,10 @@
 #Makefile
 CC = g++
 
-all:
+all: library.o 
+
+library.o: library.cc library.h
+	$(CC) -o $@ -c $<
+	
 
 
