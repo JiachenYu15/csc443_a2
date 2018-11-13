@@ -28,10 +28,10 @@ void fixed_len_write(Record *record, void *buf) {
 
     for (vector<V>::iterator itr = record->begin() ; itr != record->end(); ++itr) {
         for (int j = 0; j < strlen(*itr); j++) {
-            *(char_buf++) = *itr[j];
+            *char_buf = (*itr)[j];
+            char_buf++;
         }
     }
-
 }
 
 
