@@ -42,14 +42,10 @@ void fixed_len_write(Record *record, void *buf) {
  */
 void fixed_len_read(void *buf, int size, Record *record) {
     char* char_buf = (char *)buf;
-    int copied_bytes = 0;
-    int current_record = 0;
-
-    while (copied_bytes < size) {
-        record->at(current_record) = strndup(char_buf + copied_bytes, 10);
-        copied_bytes = copied_bytes + strlen(record->at(current_record));
-        
-        current_record++;
+    for (int i = 0; i < size / 10; i++) {
+        char *attr = (char *) calloc(11, sizeof(char));
+        memcpy(attr, char_buf + i * 10, 10);
+        record->push_back(attr);
     }
 }
 
