@@ -114,9 +114,10 @@ void write_page(Page *page, Heapfile *heapfile, PageID pid){
     int pos_directory_page = directory_entry_offset(pid, page_size);
     fseek(file_ptr,pos_directory_page + sizeof(int),SEEK_SET);
     int freespace = fixed_len_page_freeslots(page) * page->slot_size;
+    //int freespace = 8;
     fwrite(&freespace,sizeof(int),1,file_ptr);
     
-    fflush(file_ptr);
+    //fflush(file_ptr);
 }
 
 
