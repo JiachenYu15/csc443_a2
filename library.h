@@ -4,6 +4,9 @@
 /*
  * Data strcutre declaration
  */
+#define ATTRIBUTE_SIZE 10
+#define ATTRIBUTE_NUM 100
+#define RECORD_SIZE 10*100
 
 /******* Section 2 ********/
 
@@ -34,6 +37,9 @@ typedef struct {
 }RecordID;
 
 class RecordIterator{
+    private:
+        Heapfile* heapfile;
+
     public:
         RecordIterator(Heapfile *heapfile);
         Record next();
@@ -105,3 +111,38 @@ void init_heapfile(Heapfile *heapfile, int page_size, FILE *file);
 PageID alloc_page(Heapfile *heapfile);
 void read_page(Heapfile *heapfile, PageID pid, Page *page);
 void write_page(Page *page, Heapfile *heapfile, PageID pid);
+
+/******** Helpful Functions ********/
+/**
+ * Return the number of directory slots per heapfile directory page.
+ */
+int entry_per_directory_page(int page_size);
+
+/**
+ * Return the last page id on the given directory page plus one. For example,
+ * if the last pid on the directory page is 5, the function will return 6.
+ */
+PageID last_directory_pid(int directory_id, int page_size);
+
+/**
+ * Return the position of the directory page in the heapfile  given directory id.
+ */
+int directory_page_offset(int directory_id, int page_size);
+
+/**
+ * Return the position of the data page in the heapfile given pid.
+ */
+int data_page_offset(PageID page_id, int page_size);
+
+/**
+ * Return the directory of the pid it belongs.
+ */
+int page_directory_id(PageID page_id, int page_size);
+
+/**
+ * Return the position of the directory entry in the heapfile of the given pid.
+ */
+int directory_entry_offset(PageID page_id, int page_size);
+void init_directory_page(FILE* file, int page_size, PageID start);
+int read_csv_records(FILE* file, std::vector<Record*>* records);
+void show_records(Record* records);
