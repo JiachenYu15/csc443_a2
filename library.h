@@ -109,7 +109,7 @@ void read_fixed_len_page(Page *page, int slot, Record *r);
 
 void init_heapfile(Heapfile *heapfile, int page_size, FILE *file);
 PageID alloc_page(Heapfile *heapfile);
-void read_page(Heapfile *heapfile, PageID pid, Page *page);
+int read_page(Heapfile *heapfile, PageID pid, Page *page);
 void write_page(Page *page, Heapfile *heapfile, PageID pid);
 
 /******** Helpful Functions ********/
@@ -145,4 +145,4 @@ int page_directory_id(PageID page_id, int page_size);
 int directory_entry_offset(PageID page_id, int page_size);
 void init_directory_page(FILE* file, int page_size, PageID start);
 int read_csv_records(FILE* file, std::vector<Record*>* records);
-void show_records(Record* records);
+void show_records(std::vector<Record*>* records);
