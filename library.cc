@@ -1,10 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <cmath>
+#include <cstring>
 #include "library.h"
 using namespace std;
+
+RecordIterator::RecordIterator(Heapfile* heapfile){
+    this->heapfile = heapfile;
+}
+
+bool RecordIterator::hasNext(){
+    FILE* file_ptr = this->heapfile->file_ptr;
+    int page_size = this->heapfile->page_size;
+    int num_entries_per_page = directory_entry_per_page(page_size); 
+    int next_did = 1;
+    int current_pid = 0;
+    int current_did = next_did-1;
+    int freespace = 0;
+    
+    
+    while(next_did>0){
+        fseek(file_ptr,directory_page_offset(current_did, page_size),SEEK_SET);
+        fread(&next_did,sizeof(int), 1, file_ptr);
+        cout << "Now on directory page: " << current_did << "Next did is " << next_did << endl;
+
+        for(int i = 0; 
+        current_did++;
+        //fread(&current_pid, sizeof(int), 1, file_ptr);
+        //fread(&freespace, sizeof(int), 1, file_ptr);
+     }
+    return true;
+}
+            
 
 /******** Section 2 ********/
 
@@ -227,25 +257,31 @@ PageID alloc_page(Heapfile *heapfile){
     int next_did = 0;
 
     //Read the first page
+    fseek(file_ptr,0,SEEK_SET);
     fread(&next_did,sizeof(int),1,file_ptr);
     int search_scope = last_directory_pid(current_did,page_size);
-    cout << "The search_scope is: " << search_scope << endl;    
+    cout << "Alloc page running!!" << endl;    
     while(current_pid < search_scope){
         cout << "--------" << endl;
-        cout << "The current directory id: " << current_did;
+        cout << "Th current directory id: " << current_did << endl;
+        cout << "The current pid is: " << current_pid << endl;
+        cout << "The search scope is: " << search_scope << endl;
         cout << "--------" << endl; 
         //Check for available pages
         int freespace;
+        fseek(file_ptr, directory_entry_offset(current_pid, page_size), SEEK_SET);
         fread(&current_pid,sizeof(int),1,file_ptr);
         fread(&freespace,sizeof(int),1,file_ptr);
-        
-        if(freespace == page_size) 
+        if(freespace == page_size){
+            cout <<"pid is found: " << current_pid << endl; 
             return current_pid;
+        }
         else
            current_pid++;
-        
+         
         //Search the next page
         if(current_pid == search_scope){
+            cout << "Reach end of page!!!!!!!!!!!!!!!!!!!!" << endl;
             current_did++;
             search_scope=last_directory_pid(current_did,page_size);
             //Go the next page
@@ -257,20 +293,23 @@ PageID alloc_page(Heapfile *heapfile){
             }
             //Create a new directory page
             else{
+                cout << "Creating new page!!!!!!!!" << endl;
                 int pos_last_directory_page = directory_page_offset(current_did-1,page_size);
                 fseek(file_ptr,pos_last_directory_page,SEEK_SET);
                 fwrite(&current_did,sizeof(int),1,file_ptr);
-
+                cout << "write 1 is fine!!!!" << endl;
                 int pos_new_directory_page = directory_page_offset(current_did,page_size);
                 fseek(file_ptr,pos_new_directory_page,SEEK_SET);
                 fwrite(&next_did,sizeof(int),1,file_ptr);
-                
-                init_directory_page(file_ptr,page_size);
+                cout << "write 2 is fine!!!!" << endl;
+                init_directory_page(file_ptr,page_size,current_pid);
             }
 
             int pos_next_iteration = directory_page_offset(current_did,page_size) + sizeof(int);
-        }   
+        }
+        cout <<"After pid is: " << current_pid << endl;   
     }
+    
     return -1;
 
 };
@@ -300,7 +339,7 @@ void write_page(Page *page, Heapfile *heapfile, PageID pid){
     //int freespace = 8;
     fwrite(&freespace,sizeof(int),1,file_ptr);
     
-    //fflush(file_ptr);
+    fflush(file_ptr);
 }
 
 
@@ -343,23 +382,63 @@ int directory_entry_offset(PageID page_id, int page_size){
     return local_offset + directory_page_offset(directory_id, page_size);
 }
 
-void init_directory_page(FILE* file, int page_size){
+void init_directory_page(FILE* file, int page_size, PageID start){
     int num_directory_entries_per_page = entry_per_directory_page(page_size);
     int remainder = page_size - 2*sizeof(int)*num_directory_entries_per_page - sizeof(int);
     int freespace = page_size;
     
-    for(int i=0; i<num_directory_entries_per_page; i++){
+    for(int i=start; i< start + num_directory_entries_per_page; i++){
         fwrite(&i, sizeof(int), 1, file);
         fwrite(&freespace, sizeof(int), 1, file);
     }
- 
+    cout << "Fne until now!" << endl; 
     if(remainder!=0){
-        int* buffer = (int*)calloc(remainder,1);
-        fwrite(buffer,remainder,1,file);
-        free(buffer);
-
+        //int* bufer = (int*)calloc(remainder,1);
+        void* bufer = malloc(remainder);
+        cout << "dstill fine?" << endl;
+        if(bufer)
+            memset(bufer,0,remainder);
+        cout << "aStill fine?" << endl;
+        fwrite(bufer,remainder,1,file);
+        cout << "bStill fine?" << endl;
+        free(bufer);
+        cout << "cStill fine?" << endl;
     }
     return;
 }
 
+int read_csv_records(FILE* file, std::vector<Record*>* records){
+    while(!feof(file)){
+        Record* record = new Record;
+        int i = 0;
+        
+        for(i;i<ATTRIBUTE_NUM;i++){
+            char* attribute = (char*)malloc(ATTRIBUTE_SIZE);
+            if(fread(attribute, ATTRIBUTE_SIZE, 1, file) == 0){
+                break;
+            }
+            if(ferror(file)){
+                return -1;
+            }
+
+            fgetc(file);
+            record->push_back(attribute);
+        }
+        
+        if(i==ATTRIBUTE_NUM){
+            records->push_back(record);
+        }
+        cout << "Pushed back: " << i << endl;
+    }
+    return 0;
+}
+
+void show_records(Record* records){
+
+    for(int i=0;i<(records->size());i++){
+        cout << records->at(i) << "||";
+        cout << strlen(records->at(i)) << endl;
+    }
+    //cout << " || "<<endl;
+}
 
