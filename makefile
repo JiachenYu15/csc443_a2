@@ -2,7 +2,7 @@
 CC := g++
 CXXFLAGS := -std=c++11
 
-all: library.o  test_fixed_len_sizeof csv2heapfile scan insert
+all: library.o  test_fixed_len_sizeof csv2heapfile scan insert update
 
 library.o: library.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ -c $<
@@ -17,4 +17,7 @@ scan: scan.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ $< library.o
 
 insert: insert.cc library.h
+	$(CC) $(CXXFLAGS) -o $@ $< library.o
+
+update: update.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ $< library.o

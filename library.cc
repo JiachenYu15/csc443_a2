@@ -396,7 +396,7 @@ PageID alloc_page(Heapfile *heapfile){
 
 };
 
-int read_page(Heapfile *heapfile, PageID pid, Page *page){
+void read_page(Heapfile *heapfile, PageID pid, Page *page){
     FILE* file_ptr = heapfile->file_ptr;
     int page_size = heapfile->page_size;
     int pos_page = data_page_offset(pid, page_size);
@@ -408,7 +408,6 @@ int read_page(Heapfile *heapfile, PageID pid, Page *page){
         memset(page->data,0,page_size);
     }
     
-    return read_bytes;
 }
 
 void write_page(Page *page, Heapfile *heapfile, PageID pid){

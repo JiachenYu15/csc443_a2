@@ -119,7 +119,7 @@ void read_fixed_len_page(Page *page, int slot, Record *r);
 
 void init_heapfile(Heapfile *heapfile, int page_size, FILE *file);
 PageID alloc_page(Heapfile *heapfile);
-int read_page(Heapfile *heapfile, PageID pid, Page *page);
+void read_page(Heapfile *heapfile, PageID pid, Page *page);
 void write_page(Page *page, Heapfile *heapfile, PageID pid);
 
 /******** Helpful Functions ********/
