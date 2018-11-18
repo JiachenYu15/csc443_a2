@@ -9,32 +9,97 @@
 using namespace std;
 
 RecordIterator::RecordIterator(Heapfile* heapfile){
+    current_pid = 0;
+    current_did = 0;
+    next_did = 1;
     this->heapfile = heapfile;
+    this->page = (Page*)malloc(sizeof(Page));
+    init_fixed_len_page(page, this->heapfile->page_size, RECORD_SIZE);
 }
 
 bool RecordIterator::hasNext(){
-    FILE* file_ptr = this->heapfile->file_ptr;
-    int page_size = this->heapfile->page_size;
-    int num_entries_per_page = directory_entry_per_page(page_size); 
-    int next_did = 1;
-    int current_pid = 0;
-    int current_did = next_did-1;
     int freespace = 0;
-    
-    
-    while(next_did>0){
-        fseek(file_ptr,directory_page_offset(current_did, page_size),SEEK_SET);
-        fread(&next_did,sizeof(int), 1, file_ptr);
-        cout << "Now on directory page: " << current_did << "Next did is " << next_did << endl;
+    int search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+    if((this->current_pid) == search_scope){
+        fseek(this->heapfile->file_ptr, directory_page_offset(this->current_did, this->heapfile->page_size), SEEK_SET);
+        fread(&(this->next_did), sizeof(int), 1, this->heapfile->file_ptr);
+        cout << "The next did is " << this->next_did << endl; 
 
-        for(int i = 0; 
-        current_did++;
-        //fread(&current_pid, sizeof(int), 1, file_ptr);
-        //fread(&freespace, sizeof(int), 1, file_ptr);
-     }
-    return true;
-}
+        if(next_did > 0){
+            (this->current_did)++;
+            search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+            cout << "The new search scope is " << search_scope << endl;
+        }   
+        else{
+            return false;
+        }
+    }
+   
+    while((this->current_pid) < search_scope){
+    
+        //cout << "Now on directory page: " << this->current_did << " Next did is " << this->next_did << endl;
+        fseek(this->heapfile->file_ptr, directory_entry_offset(this->current_pid, this->heapfile->page_size), SEEK_SET);
+        fread(&(this->current_pid), sizeof(int), 1, this->heapfile->file_ptr);
+        fread(&freespace, sizeof(int), 1, this->heapfile->file_ptr);
+
+        if(freespace < this->heapfile->page_size){
+            return true;
+        }
+
+
+        (this->current_pid)++;
+
+        if((this->current_pid) == search_scope){
+            fseek(this->heapfile->file_ptr, directory_page_offset(this->current_did, this->heapfile->page_size), SEEK_SET);
+            fread(&(this->next_did), sizeof(int), 1, this->heapfile->file_ptr);
             
+
+            if(next_did > 0){
+                (this->current_did)++;
+                search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+            }   
+            else{
+                return false;
+            }
+        }
+            
+    }
+
+    return false;
+
+}
+
+Record RecordIterator::next(){
+    Record temp;
+    read_page(this->heapfile, this->current_pid, this->page);
+    return temp;
+}
+
+
+int RecordIterator::get_next_did(){
+    return this->next_did;
+}
+
+int RecordIterator::get_current_did(){
+    return this->current_did;
+}
+
+int RecordIterator::get_current_pid(){
+    return this->current_pid;
+}
+
+void RecordIterator::current_pid_add_one(){
+    (this->current_pid)++;
+}
+
+Page* RecordIterator::get_page(){
+    return (this->page);
+}
+
+RecordIterator::~RecordIterator(){
+    free(this->page);
+}
+
 
 /******** Section 2 ********/
 
@@ -44,7 +109,7 @@ bool RecordIterator::hasNext(){
 int fixed_len_sizeof(Record *record) {
     int total_bytes = 0;
     for (vector<V>::iterator itr = record->begin() ; itr != record->end(); ++itr) {
-        total_bytes += strlen(*itr);
+        total_bytes += ATTRIBUTE_SIZE;
     }
 
     return total_bytes;
@@ -59,7 +124,7 @@ void fixed_len_write(Record *record, void *buf) {
     char* char_buf = (char *)buf;
 
     for (vector<V>::iterator itr = record->begin() ; itr != record->end(); ++itr) {
-        for (int j = 0; j < strlen(*itr); j++) {
+        for (int j = 0; j < ATTRIBUTE_SIZE; j++) {
             *char_buf = (*itr)[j];
             char_buf++;
         }
@@ -204,6 +269,31 @@ int get_first_free_freeslot(Page *page) {
     return -1;
 }
 
+void print_page_records(Page* page){
+    int data_slots_total_count = fixed_len_page_capacity(page);
+    int bytes_to_check = ceil(data_slots_total_count / 8.0);
+    char* ptr = (char*) page->data;
+    int free_slot_pos = 0;
+
+    for (int i = 0; i < bytes_to_check; i++) {
+        int end_limit = 8;
+        if (data_slots_total_count < end_limit) {
+            end_limit = data_slots_total_count;
+        }
+
+        for (int j = 0; j < end_limit; j++) {
+            if (((ptr[i] >> j) & 1) == 1) {
+                Record* record = (Record*)malloc(sizeof(Record));
+                read_fixed_len_page(page, free_slot_pos, record);
+                show_single_record(record);
+                //free(record);
+            }
+            free_slot_pos++;
+        }
+        data_slots_total_count -= 8;
+    }
+}
+
  
 /**
  * Write a record into a given slot.
@@ -225,23 +315,15 @@ void read_fixed_len_page(Page *page, int slot, Record *r) {
 
 void init_heapfile(Heapfile *heapfile, int page_size, FILE *file){
     int num_directory_entries_per_page = entry_per_directory_page(page_size);
-    int remainder = page_size - 2*sizeof(int)*num_directory_entries_per_page - sizeof(int);
     int next_directory_id = 0;
     int freespace = page_size;
     
     fwrite(&next_directory_id,sizeof(int),1,file);
-    cout <<"Th number is "<< num_directory_entries_per_page<<endl<<flush;
     for(int i=0; i<num_directory_entries_per_page; i++){
         fwrite(&i, sizeof(int), 1, file);
         fwrite(&freespace, sizeof(int), 1, file);
     }
     
-    if(remainder!=0){
-        int* buffer = (int*)calloc(remainder,1);
-        fwrite(buffer,remainder,1,file);
-        free(buffer);
-
-    }
     heapfile->file_ptr = file;
     heapfile->page_size = page_size;
 }
@@ -260,13 +342,15 @@ PageID alloc_page(Heapfile *heapfile){
     fseek(file_ptr,0,SEEK_SET);
     fread(&next_did,sizeof(int),1,file_ptr);
     int search_scope = last_directory_pid(current_did,page_size);
-    cout << "Alloc page running!!" << endl;    
+    //cout << "Alloc page running!!" << endl;    
     while(current_pid < search_scope){
+        /*
         cout << "--------" << endl;
         cout << "Th current directory id: " << current_did << endl;
         cout << "The current pid is: " << current_pid << endl;
         cout << "The search scope is: " << search_scope << endl;
         cout << "--------" << endl; 
+        */
         //Check for available pages
         int freespace;
         fseek(file_ptr, directory_entry_offset(current_pid, page_size), SEEK_SET);
@@ -281,7 +365,7 @@ PageID alloc_page(Heapfile *heapfile){
          
         //Search the next page
         if(current_pid == search_scope){
-            cout << "Reach end of page!!!!!!!!!!!!!!!!!!!!" << endl;
+            //cout << "Reach end of page!!!!!!!!!!!!!!!!!!!!" << endl;
             current_did++;
             search_scope=last_directory_pid(current_did,page_size);
             //Go the next page
@@ -293,34 +377,38 @@ PageID alloc_page(Heapfile *heapfile){
             }
             //Create a new directory page
             else{
-                cout << "Creating new page!!!!!!!!" << endl;
+                //cout << "Creating new page!!!!!!!!" << endl;
                 int pos_last_directory_page = directory_page_offset(current_did-1,page_size);
                 fseek(file_ptr,pos_last_directory_page,SEEK_SET);
                 fwrite(&current_did,sizeof(int),1,file_ptr);
-                cout << "write 1 is fine!!!!" << endl;
                 int pos_new_directory_page = directory_page_offset(current_did,page_size);
                 fseek(file_ptr,pos_new_directory_page,SEEK_SET);
                 fwrite(&next_did,sizeof(int),1,file_ptr);
-                cout << "write 2 is fine!!!!" << endl;
                 init_directory_page(file_ptr,page_size,current_pid);
             }
 
             int pos_next_iteration = directory_page_offset(current_did,page_size) + sizeof(int);
         }
-        cout <<"After pid is: " << current_pid << endl;   
+        //cout <<"After pid is: " << current_pid << endl;   
     }
     
     return -1;
 
 };
 
-void read_page(Heapfile *heapfile, PageID pid, Page *page){
+int read_page(Heapfile *heapfile, PageID pid, Page *page){
     FILE* file_ptr = heapfile->file_ptr;
     int page_size = heapfile->page_size;
     int pos_page = data_page_offset(pid, page_size);
 
     fseek(file_ptr, pos_page, SEEK_SET);
-    fread(page->data, page_size, 1, file_ptr);
+    int read_bytes = fread(page->data, page_size, 1, file_ptr);
+    
+    if(read_bytes == 0){
+        memset(page->data,0,page_size);
+    }
+    
+    return read_bytes;
 }
 
 void write_page(Page *page, Heapfile *heapfile, PageID pid){
@@ -384,25 +472,11 @@ int directory_entry_offset(PageID page_id, int page_size){
 
 void init_directory_page(FILE* file, int page_size, PageID start){
     int num_directory_entries_per_page = entry_per_directory_page(page_size);
-    int remainder = page_size - 2*sizeof(int)*num_directory_entries_per_page - sizeof(int);
     int freespace = page_size;
     
     for(int i=start; i< start + num_directory_entries_per_page; i++){
         fwrite(&i, sizeof(int), 1, file);
         fwrite(&freespace, sizeof(int), 1, file);
-    }
-    cout << "Fne until now!" << endl; 
-    if(remainder!=0){
-        //int* bufer = (int*)calloc(remainder,1);
-        void* bufer = malloc(remainder);
-        cout << "dstill fine?" << endl;
-        if(bufer)
-            memset(bufer,0,remainder);
-        cout << "aStill fine?" << endl;
-        fwrite(bufer,remainder,1,file);
-        cout << "bStill fine?" << endl;
-        free(bufer);
-        cout << "cStill fine?" << endl;
     }
     return;
 }
@@ -428,17 +502,93 @@ int read_csv_records(FILE* file, std::vector<Record*>* records){
         if(i==ATTRIBUTE_NUM){
             records->push_back(record);
         }
-        cout << "Pushed back: " << i << endl;
+        //cout << "Pushed back: " << i << endl;
     }
     return 0;
 }
 
-void show_records(Record* records){
-
+void show_records(std::vector<Record*>* records){
     for(int i=0;i<(records->size());i++){
-        cout << records->at(i) << "||";
-        cout << strlen(records->at(i)) << endl;
+        for(int m=0;m<(records->at(i))->size();m++){
+            cout << records->at(i)->at(m);
+            cout << " || ";
+        }
+        cout << endl;
     }
-    //cout << " || "<<endl;
 }
 
+void show_single_record(Record* record){
+    for(int m=0; m<record->size(); m++){
+        cout << record->at(m);
+        cout << " || ";
+    }
+    cout << endl;
+}
+
+PageID alloc_space(Heapfile *heapfile, int space_size){
+    FILE* file_ptr = heapfile->file_ptr;
+    int page_size = heapfile->page_size;
+
+    //Set up variables to loop though the file
+    PageID current_pid = 0;
+    int current_did = 0;
+    int next_did = 0;
+
+    //Read the first page
+    fseek(file_ptr,0,SEEK_SET);
+    fread(&next_did,sizeof(int),1,file_ptr);
+    int search_scope = last_directory_pid(current_did,page_size);
+    //cout << "Alloc page running!!" << endl;    
+    while(current_pid < search_scope){
+        /*
+        cout << "--------" << endl;
+        cout << "Th current directory id: " << current_did << endl;
+        cout << "The current pid is: " << current_pid << endl;
+        cout << "The search scope is: " << search_scope << endl;
+        cout << "--------" << endl; 
+        */
+        //Check for available pages
+        int freespace;
+        fseek(file_ptr, directory_entry_offset(current_pid, page_size), SEEK_SET);
+        fread(&current_pid,sizeof(int),1,file_ptr);
+        fread(&freespace,sizeof(int),1,file_ptr);
+        if(freespace >= space_size){
+            cout <<"pid is found: " << current_pid << endl;
+            cout <<"freespace is: " << freespace<< endl; 
+            return current_pid;
+        }
+        else
+           current_pid++;
+         
+        //Search the next page
+        if(current_pid == search_scope){
+            //cout << "Reach end of page!!!!!!!!!!!!!!!!!!!!" << endl;
+            current_did++;
+            search_scope=last_directory_pid(current_did,page_size);
+            //Go the next page
+            if(next_did > 0){
+                int pos_next_directory_page = directory_page_offset(current_did,page_size);
+                fseek(file_ptr,pos_next_directory_page,SEEK_SET);
+                fread(&next_did,sizeof(int),1,file_ptr);
+
+            }
+            //Create a new directory page
+            else{
+                //cout << "Creating new page!!!!!!!!" << endl;
+                int pos_last_directory_page = directory_page_offset(current_did-1,page_size);
+                fseek(file_ptr,pos_last_directory_page,SEEK_SET);
+                fwrite(&current_did,sizeof(int),1,file_ptr);
+                int pos_new_directory_page = directory_page_offset(current_did,page_size);
+                fseek(file_ptr,pos_new_directory_page,SEEK_SET);
+                fwrite(&next_did,sizeof(int),1,file_ptr);
+                init_directory_page(file_ptr,page_size,current_pid);
+            }
+
+            int pos_next_iteration = directory_page_offset(current_did,page_size) + sizeof(int);
+        }
+        //cout <<"After pid is: " << current_pid << endl;   
+    }
+    
+    return -1;
+
+};
