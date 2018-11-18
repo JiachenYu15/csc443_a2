@@ -148,7 +148,6 @@ void fixed_len_read(void *buf, int size, Record *record) {
 /******** Section 3 ********/
 
 int fixed_len_page_directory_slots_count(Page *page);
-int get_first_free_freeslot(Page *page);
 
 /**
  * Initializes a page using the given slot size
@@ -267,6 +266,39 @@ int get_first_free_freeslot(Page *page) {
         data_slots_total_count -= 8;
     }
     return -1;
+}
+
+
+/**
+ * Check the availability of the given slot
+ * Return 1 if slot is available(empty), else, return 0
+ */
+bool check_slot_availability(Page* page, int slot) {
+    int bytes_to_jump = slot / 8;
+    int bit_pos_to_check = slot % 8;
+    char* ptr = (char*) page->data;
+    if (((ptr[bytes_to_jump] >> bit_pos_to_check) & 1) == 1) {
+
+        return false;
+    }
+    return true;
+}
+
+
+/*
+ * Set the value of the given slot
+ */
+void set_slot_directory(Page* page, int slot, int val) {
+    int bytes_to_jump = slot / 8;
+    int bit_pos_to_check = slot % 8;
+    char* ptr = (char*) page->data;
+    if (val) {
+        ptr[bytes_to_jump] |= 1 << bit_pos_to_check;
+    } 
+    else {
+        ptr[bytes_to_jump] &= ~(1 << bit_pos_to_check);
+    }
+    return;
 }
 
 void print_page_records(Page* page){
