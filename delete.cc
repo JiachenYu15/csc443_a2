@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <bitset>
 #include <string.h>
 #include "library.h"
 using namespace std;
 
 int main(int argc, char** argv){
-    if (argc!=6){
-        fprintf(stderr, "Usage: %s <heapfile> <record_id> <attribute_id> <new_value> <page_size>\n", argv[0]);
+    if (argc!=4){
+        fprintf(stderr, "Usage: %s <heapfile> <record_id> <page_size>\n", argv[0]);
         return -1;
     }
     //Assume the max length of a slot id is 5 characters, which means the max is 99999
@@ -33,14 +34,7 @@ int main(int argc, char** argv){
     cout << "The pid is: " << pid << endl;
     cout << "The slot is: " << slot << endl;
 
-    int attribute_id = atoi(argv[3]);
-    char* new_value = argv[4];
     int page_size = atoi(argv[5]);
-    
-    if(strlen(new_value) != 10){
-        cout << "Error: New attribute size must be 10 bytes. The provided size is " << strlen(new_value) << endl;
-        return -1;
-    }
 
     FILE* heap_file = fopen(argv[1],"r+");
     Heapfile* heapfile = (Heapfile*)malloc(sizeof(Heapfile));
@@ -52,7 +46,9 @@ int main(int argc, char** argv){
     read_page(heapfile, pid, page);
     int freeslots = fixed_len_page_freeslots(page);
     int capacity = fixed_len_page_capacity(page);
-    if(freeslots == capacity){
+    cout << "The freeslots is " << freeslots << endl;
+    cout << "The capacity is " << capacity << endl;
+    if(freeslots == capacity && freeslots != 0){
         cout << "Error: The page is empty. Page ID: " << pid << endl;
         return -1;
     }
@@ -64,21 +60,23 @@ int main(int argc, char** argv){
         return -1;
     }
     */
-
+    
     Record* record = new Record;
     read_fixed_len_page(page, slot, record);
-    char* old_value = (char*)malloc(ATTRIBUTE_SIZE);
-    memcpy(old_value, record->at(attribute_id), ATTRIBUTE_SIZE);
-    record->at(attribute_id) = new_value;
+    char* ptr = (char*) page->data;
+    bitset<8> before(*ptr);
+    *ptr |= 0 >> slot;
+    bitset<8> after(*ptr);
+    cout << "Before is " << before << endl;
+    cout << "After is " << after << endl;
     write_fixed_len_page(page, slot, record);
     write_page(page, heapfile, pid);
+    
 
-    cout << "Update Page " << pid << " Slot " << slot << " Attribute " << attribute_id << endl;
-    cout << "Old value: " << old_value << " New Value: " << new_value << endl;
+    cout << "Deleted Page " << pid << " Slot " << slot << endl;
 
     fclose(heap_file);
     free(page);
-    free(old_value);
     free(record);
     free(heapfile);
 

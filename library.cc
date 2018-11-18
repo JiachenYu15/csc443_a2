@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <vector>
 #include <cmath>
+#include <bitset>
 #include <cstring>
 #include "library.h"
 using namespace std;
@@ -282,7 +283,10 @@ void print_page_records(Page* page){
         }
 
         for (int j = 0; j < end_limit; j++) {
+            
             if (((ptr[i] >> j) & 1) == 1) {
+                bitset<8> aha(ptr[i]);
+                cout << "In print the bitmap is "<< aha << endl;
                 Record* record = (Record*)malloc(sizeof(Record));
                 read_fixed_len_page(page, free_slot_pos, record);
                 show_single_record(record);
@@ -293,6 +297,45 @@ void print_page_records(Page* page){
         data_slots_total_count -= 8;
     }
 }
+
+int search_page(Page* page, int attribute_id, char* start, char* end){
+    int data_slots_total_count = fixed_len_page_capacity(page);
+    int bytes_to_check = ceil(data_slots_total_count / 8.0);
+    char* ptr = (char*) page->data;
+    int free_slot_pos = 0;
+    int matched = 0;
+
+    for (int i = 0; i < bytes_to_check; i++) {
+        int end_limit = 8;
+        if (data_slots_total_count < end_limit) {
+            end_limit = data_slots_total_count;
+        }
+
+        for (int j = 0; j < end_limit; j++) {
+            
+            if (((ptr[i] >> j) & 1) == 1) {
+                bitset<8> aha(ptr[i]);
+                cout << "In print the bitmap is "<< aha << endl;
+                Record* record = (Record*)malloc(sizeof(Record));
+                read_fixed_len_page(page, free_slot_pos, record);
+                char* attribute = (char*)malloc(ATTRIBUTE_SIZE);
+                memcpy(attribute,record->at(attribute_id),ATTRIBUTE_SIZE);
+                if(strcmp(attribute, start) >= 0 && strcmp(attribute, end) <= 0){
+                    matched++;
+                    char* printout = (char*)malloc(5);
+                    memcpy(printout, attribute, 5);
+                    cout << printout << endl;
+                }
+                //free(record);
+            }
+            free_slot_pos++;
+        }
+        data_slots_total_count -= 8;
+    }
+
+    return matched;
+}
+
 
  
 /**
@@ -423,6 +466,7 @@ void write_page(Page *page, Heapfile *heapfile, PageID pid){
     int pos_directory_page = directory_entry_offset(pid, page_size);
     fseek(file_ptr,pos_directory_page + sizeof(int),SEEK_SET);
     int freespace = fixed_len_page_freeslots(page) * page->slot_size;
+    cout << "The freespace is "<< freespace << endl;
     //int freespace = 8;
     fwrite(&freespace,sizeof(int),1,file_ptr);
     
