@@ -158,3 +158,4 @@ int read_csv_records(FILE* file, std::vector<Record*>* records);
 void show_records(std::vector<Record*>* records);
 void print_page_records(Page* page);
 void show_single_record(Record* record);
+PageID alloc_space(Heapfile* heapfile, int space_size);
