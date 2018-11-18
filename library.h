@@ -39,11 +39,21 @@ typedef struct {
 class RecordIterator{
     private:
         Heapfile* heapfile;
+        int current_pid;
+        int next_did;
+        int current_did;
+        Page* page;
 
     public:
         RecordIterator(Heapfile *heapfile);
+        int get_next_did();
+        int get_current_did();
+        int get_current_pid();
+        Page* get_page();
+        void current_pid_add_one();
         Record next();
         bool hasNext();
+        ~RecordIterator();
 };
 
 /*
@@ -146,3 +156,5 @@ int directory_entry_offset(PageID page_id, int page_size);
 void init_directory_page(FILE* file, int page_size, PageID start);
 int read_csv_records(FILE* file, std::vector<Record*>* records);
 void show_records(std::vector<Record*>* records);
+void print_page_records(Page* page);
+void show_single_record(Record* record);

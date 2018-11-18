@@ -9,31 +9,97 @@
 using namespace std;
 
 RecordIterator::RecordIterator(Heapfile* heapfile){
+    current_pid = 0;
+    current_did = 0;
+    next_did = 1;
     this->heapfile = heapfile;
+    this->page = (Page*)malloc(sizeof(Page));
+    init_fixed_len_page(page, this->heapfile->page_size, RECORD_SIZE);
 }
 
 bool RecordIterator::hasNext(){
-    FILE* file_ptr = this->heapfile->file_ptr;
-    int page_size = this->heapfile->page_size;
-    int num_entries_per_page = entry_per_directory_page(page_size); 
-    int next_did = 1;
-    int current_pid = 0;
-    int current_did = next_did-1;
     int freespace = 0;
-    
-    
-    while(next_did>0){
-        fseek(file_ptr,directory_page_offset(current_did, page_size),SEEK_SET);
-        fread(&next_did,sizeof(int), 1, file_ptr);
-        cout << "Now on directory page: " << current_did << "Next did is " << next_did << endl;
+    int search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+    if((this->current_pid) == search_scope){
+        fseek(this->heapfile->file_ptr, directory_page_offset(this->current_did, this->heapfile->page_size), SEEK_SET);
+        fread(&(this->next_did), sizeof(int), 1, this->heapfile->file_ptr);
+        cout << "The next did is " << this->next_did << endl; 
 
-        current_did++;
-        //fread(&current_pid, sizeof(int), 1, file_ptr);
-        //fread(&freespace, sizeof(int), 1, file_ptr);
-     }
-    return true;
-}
+        if(next_did > 0){
+            (this->current_did)++;
+            search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+            cout << "The new search scope is " << search_scope << endl;
+        }   
+        else{
+            return false;
+        }
+    }
+   
+    while((this->current_pid) < search_scope){
+    
+        //cout << "Now on directory page: " << this->current_did << " Next did is " << this->next_did << endl;
+        fseek(this->heapfile->file_ptr, directory_entry_offset(this->current_pid, this->heapfile->page_size), SEEK_SET);
+        fread(&(this->current_pid), sizeof(int), 1, this->heapfile->file_ptr);
+        fread(&freespace, sizeof(int), 1, this->heapfile->file_ptr);
+
+        if(freespace < this->heapfile->page_size){
+            return true;
+        }
+
+
+        (this->current_pid)++;
+
+        if((this->current_pid) == search_scope){
+            fseek(this->heapfile->file_ptr, directory_page_offset(this->current_did, this->heapfile->page_size), SEEK_SET);
+            fread(&(this->next_did), sizeof(int), 1, this->heapfile->file_ptr);
             
+
+            if(next_did > 0){
+                (this->current_did)++;
+                search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
+            }   
+            else{
+                return false;
+            }
+        }
+            
+    }
+
+    return false;
+
+}
+
+Record RecordIterator::next(){
+    Record temp;
+    read_page(this->heapfile, this->current_pid, this->page);
+    return temp;
+}
+
+
+int RecordIterator::get_next_did(){
+    return this->next_did;
+}
+
+int RecordIterator::get_current_did(){
+    return this->current_did;
+}
+
+int RecordIterator::get_current_pid(){
+    return this->current_pid;
+}
+
+void RecordIterator::current_pid_add_one(){
+    (this->current_pid)++;
+}
+
+Page* RecordIterator::get_page(){
+    return (this->page);
+}
+
+RecordIterator::~RecordIterator(){
+    free(this->page);
+}
+
 
 /******** Section 2 ********/
 
@@ -201,6 +267,31 @@ int get_first_free_freeslot(Page *page) {
         data_slots_total_count -= 8;
     }
     return -1;
+}
+
+void print_page_records(Page* page){
+    int data_slots_total_count = fixed_len_page_capacity(page);
+    int bytes_to_check = ceil(data_slots_total_count / 8.0);
+    char* ptr = (char*) page->data;
+    int free_slot_pos = 0;
+
+    for (int i = 0; i < bytes_to_check; i++) {
+        int end_limit = 8;
+        if (data_slots_total_count < end_limit) {
+            end_limit = data_slots_total_count;
+        }
+
+        for (int j = 0; j < end_limit; j++) {
+            if (((ptr[i] >> j) & 1) == 1) {
+                Record* record = (Record*)malloc(sizeof(Record));
+                read_fixed_len_page(page, free_slot_pos, record);
+                show_single_record(record);
+                //free(record);
+            }
+            free_slot_pos++;
+        }
+        data_slots_total_count -= 8;
+    }
 }
 
  
@@ -417,7 +508,6 @@ int read_csv_records(FILE* file, std::vector<Record*>* records){
 }
 
 void show_records(std::vector<Record*>* records){
-    //char* attribute_output = (char*)malloc(ATTRIBUTE_SIZE);
     for(int i=0;i<(records->size());i++){
         for(int m=0;m<(records->at(i))->size();m++){
             cout << records->at(i)->at(m);
@@ -425,5 +515,13 @@ void show_records(std::vector<Record*>* records){
         }
         cout << endl;
     }
+}
+
+void show_single_record(Record* record){
+    for(int m=0; m<record->size(); m++){
+        cout << record->at(m);
+        cout << " || ";
+    }
+    cout << endl;
 }
 

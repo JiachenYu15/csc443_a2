@@ -34,7 +34,7 @@ int main(int argc, char** argv){
     fclose(csv_file);
     cout << "Number of tuples of csv file: " << records.size()<<endl;
     
-    show_records(&records);
+    //show_records(&records);
     
     //Initialize heapfile
     Heapfile* heapfile = (Heapfile*)malloc(sizeof(Heapfile));
