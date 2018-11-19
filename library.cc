@@ -228,16 +228,19 @@ int fixed_len_page_freeslots(Page *page) {
  */
 int add_fixed_len_page(Page *page, Record *r) {
     // Return -1 if page is full
+    cout << "The freeslots before insert is: " << fixed_len_page_freeslots(page) << endl;
+    cout << "The capacity is: " << fixed_len_page_capacity(page) << endl;
     if (fixed_len_page_freeslots(page) < 1) {
         return -1;
     }
 
     // Find the position of the first free slot
     int first_free_slot_pos = get_first_free_freeslot(page);
+    cout << "first_free_slot_pos is " << first_free_slot_pos << endl;
     // Set the bit to 1
     char* ptr = (char*) page->data;
     *ptr |= 1 << first_free_slot_pos;
-
+    cout << "The freeslots after insert is: " << fixed_len_page_freeslots(page) << endl;
 
     write_fixed_len_page(page, first_free_slot_pos, r);
     return first_free_slot_pos;

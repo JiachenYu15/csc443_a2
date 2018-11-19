@@ -2,7 +2,7 @@
 CC := g++
 CXXFLAGS := -std=c++11
 
-all: library.o  test_fixed_len_sizeof csv2heapfile scan insert update delete select
+all: library.o  test_fixed_len_sizeof csv2heapfile scan insert update delete select csv2colstore
 
 library.o: library.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ -c $<
@@ -26,4 +26,7 @@ delete: delete.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ $< library.o
 
 select: select.cc library.h
+	$(CC) $(CXXFLAGS) -o $@ $< library.o
+
+csv2colstore: csv2colstore.cc library.h
 	$(CC) $(CXXFLAGS) -o $@ $< library.o
