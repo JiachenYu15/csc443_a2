@@ -35,6 +35,9 @@ int main(int argc, char** argv){
     cout << "Number of tuples of csv file: " << records.size()<<endl;
     
     //show_records(&records);
+    struct timeb t;
+    ftime(&t);
+    long start_time = t.time * 1000 + t.millitm;
     
     //Initialize heapfile
     Heapfile* heapfile = (Heapfile*)malloc(sizeof(Heapfile));
@@ -58,18 +61,19 @@ int main(int argc, char** argv){
     read_page(heapfile,pid,page);
     for(int i=0; i < records.size(); i++){
         if(add_fixed_len_page(page, records.at(i)) == -1){
-                cout << "Page " << pid << " is full after inertion of " << i-1 << endl;
                 write_page(page,heapfile,pid);
                 pid = alloc_page(heapfile);
                 read_page(heapfile, pid, page);
                 int second = add_fixed_len_page(page, records.at(i));
-                cout << "Second attempt returns: " << second << endl;
                 
         }
-        cout << "Record " << i << " stored at page: " << pid << endl;
     }
     
     write_page(page, heapfile, pid);
+    
+    ftime(&t);
+    long end_time = t.time * 1000 + t.millitm;
+    cout << "Time used: " << end_time - start_time << " ms." << endl;
     return 0;
 }
 

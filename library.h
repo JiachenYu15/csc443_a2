@@ -135,7 +135,7 @@ void set_slot_directory(Page* page, int slot, int val);
 
 void init_heapfile(Heapfile *heapfile, int page_size, FILE *file);
 PageID alloc_page(Heapfile *heapfile);
-int read_page(Heapfile *heapfile, PageID pid, Page *page);
+void read_page(Heapfile *heapfile, PageID pid, Page *page);
 void write_page(Page *page, Heapfile *heapfile, PageID pid);
 
 /******** Helpful Functions ********/
@@ -175,3 +175,4 @@ void show_records(std::vector<Record*>* records);
 void print_page_records(Page* page);
 void show_single_record(Record* record);
 PageID alloc_space(Heapfile* heapfile, int space_size);
+int search_page(Page* page, int attribute_id, char* start, char* end);
