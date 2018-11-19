@@ -115,6 +115,22 @@ void write_fixed_len_page(Page *page, int slot, Record *r);
  */
 void read_fixed_len_page(Page *page, int slot, Record *r);
 
+/**
+ * Find first free slot in page
+ */
+int get_first_free_freeslot(Page *page);
+
+/**
+ * Check the availability of the given slot
+ * Return 1 if slot is available(empty), else, return 0
+ */
+bool check_slot_availability(Page* page, int slot);
+
+/*
+ * Set the value of the given slot
+ */
+void set_slot_directory(Page* page, int slot, int val);
+
 /******** Section 4 *******/
 
 void init_heapfile(Heapfile *heapfile, int page_size, FILE *file);
