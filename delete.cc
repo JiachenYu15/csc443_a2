@@ -46,13 +46,18 @@ int main(int argc, char** argv){
     read_page(heapfile, pid, page);
     int freeslots = fixed_len_page_freeslots(page);
     int capacity = fixed_len_page_capacity(page);
-    cout << "The freeslots is " << freeslots << endl;
-    cout << "The capacity is " << capacity << endl;
+    
     if(freeslots == capacity && freeslots != 0){
         cout << "Error: The page is empty. Page ID: " << pid << endl;
         return -1;
     }
-    
+   
+    /* 
+    if(check_slot_availability(page,slot)){
+        cout << "Error: The slot is empty. Page ID: " << pid << " Slot ID: " << slot << endl;
+        return -1;
+    }
+    */
     /*
     char* ptr = (char*)page->data + 
     if(((*ptr >> slot) & 1) == 0){
@@ -64,11 +69,7 @@ int main(int argc, char** argv){
     Record* record = new Record;
     read_fixed_len_page(page, slot, record);
     char* ptr = (char*) page->data;
-    bitset<8> before(*ptr);
-    *ptr |= 0 >> slot;
-    bitset<8> after(*ptr);
-    cout << "Before is " << before << endl;
-    cout << "After is " << after << endl;
+    set_slot_directory(page, slot, 0);
     write_fixed_len_page(page, slot, record);
     write_page(page, heapfile, pid);
     

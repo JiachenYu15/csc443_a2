@@ -32,14 +32,11 @@ int main(int argc, char** argv){
     read_page(heapfile, pid, page);
     for(int i=0; i< records.size(); i++){
         if(add_fixed_len_page(page, records.at(i)) == -1){
-            cout << "Insert: Page " << pid << " is full after insertion of " << i-1 << endl;
             write_page(page, heapfile, pid);
             pid = alloc_space(heapfile, RECORD_SIZE);
             read_page(heapfile, pid, page);
             int second = add_fixed_len_page(page, records.at(i));
-            cout << "Insert: second attempts return: " << second << endl;
         }
-        cout << "Record " << i << " stored at page: " << pid << endl;
     }
 
     write_page(page, heapfile, pid);

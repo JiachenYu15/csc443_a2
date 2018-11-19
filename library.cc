@@ -24,12 +24,11 @@ bool RecordIterator::hasNext(){
     if((this->current_pid) == search_scope){
         fseek(this->heapfile->file_ptr, directory_page_offset(this->current_did, this->heapfile->page_size), SEEK_SET);
         fread(&(this->next_did), sizeof(int), 1, this->heapfile->file_ptr);
-        cout << "The next did is " << this->next_did << endl; 
+        //cout << "The next did is " << this->next_did << endl; 
 
         if(next_did > 0){
             (this->current_did)++;
             search_scope = last_directory_pid(this->current_did, this->heapfile->page_size);
-            cout << "The new search scope is " << search_scope << endl;
         }   
         else{
             return false;
@@ -227,19 +226,16 @@ int fixed_len_page_freeslots(Page *page) {
  */
 int add_fixed_len_page(Page *page, Record *r) {
     // Return -1 if page is full
-    cout << "The freeslots before insert is: " << fixed_len_page_freeslots(page) << endl;
-    cout << "The capacity is: " << fixed_len_page_capacity(page) << endl;
     if (fixed_len_page_freeslots(page) < 1) {
         return -1;
     }
 
     // Find the position of the first free slot
     int first_free_slot_pos = get_first_free_freeslot(page);
-    cout << "first_free_slot_pos is " << first_free_slot_pos << endl;
     // Set the bit to 1
     char* ptr = (char*) page->data;
-    *ptr |= 1 << first_free_slot_pos;
-    cout << "The freeslots after insert is: " << fixed_len_page_freeslots(page) << endl;
+    //*ptr |= 1 << first_free_slot_pos;
+    set_slot_directory(page, first_free_slot_pos, 1);
 
     write_fixed_len_page(page, first_free_slot_pos, r);
     return first_free_slot_pos;
@@ -321,7 +317,6 @@ void print_page_records(Page* page){
             
             if (((ptr[i] >> j) & 1) == 1) {
                 bitset<8> aha(ptr[i]);
-                cout << "In print the bitmap is "<< aha << endl;
                 Record* record = (Record*)malloc(sizeof(Record));
                 read_fixed_len_page(page, free_slot_pos, record);
                 show_single_record(record);
@@ -350,7 +345,6 @@ int search_page(Page* page, int attribute_id, char* start, char* end){
             
             if (((ptr[i] >> j) & 1) == 1) {
                 bitset<8> aha(ptr[i]);
-                cout << "In print the bitmap is "<< aha << endl;
                 Record* record = (Record*)malloc(sizeof(Record));
                 read_fixed_len_page(page, free_slot_pos, record);
                 char* attribute = (char*)malloc(ATTRIBUTE_SIZE);
@@ -435,7 +429,6 @@ PageID alloc_page(Heapfile *heapfile){
         fread(&current_pid,sizeof(int),1,file_ptr);
         fread(&freespace,sizeof(int),1,file_ptr);
         if(freespace == page_size){
-            cout <<"pid is found: " << current_pid << endl; 
             return current_pid;
         }
         else
@@ -501,7 +494,6 @@ void write_page(Page *page, Heapfile *heapfile, PageID pid){
     int pos_directory_page = directory_entry_offset(pid, page_size);
     fseek(file_ptr,pos_directory_page + sizeof(int),SEEK_SET);
     int freespace = fixed_len_page_freeslots(page) * page->slot_size;
-    cout << "The freespace is "<< freespace << endl;
     //int freespace = 8;
     fwrite(&freespace,sizeof(int),1,file_ptr);
     
@@ -589,7 +581,12 @@ void show_records(std::vector<Record*>* records){
     for(int i=0;i<(records->size());i++){
         for(int m=0;m<(records->at(i))->size();m++){
             cout << records->at(i)->at(m);
-            cout << " || ";
+            if(m==((records->at(i))->size() -1)){
+                cout << "||";
+            }
+            else{  
+                cout << " || ";
+            }
         }
         cout << endl;
     }
@@ -598,7 +595,12 @@ void show_records(std::vector<Record*>* records){
 void show_single_record(Record* record){
     for(int m=0; m<record->size(); m++){
         cout << record->at(m);
-        cout << " || ";
+        if(m==(record->size() -1)){
+            cout << " || ";
+        }
+        else{
+            cout << ",";
+        }
     }
     cout << endl;
 }
@@ -631,8 +633,6 @@ PageID alloc_space(Heapfile *heapfile, int space_size){
         fread(&current_pid,sizeof(int),1,file_ptr);
         fread(&freespace,sizeof(int),1,file_ptr);
         if(freespace >= space_size){
-            cout <<"pid is found: " << current_pid << endl;
-            cout <<"freespace is: " << freespace<< endl; 
             return current_pid;
         }
         else

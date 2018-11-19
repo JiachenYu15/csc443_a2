@@ -4,6 +4,7 @@
 #include <string.h>
 #include <vector>
 #include <string>
+#include <sys/timeb.h>
 #include "library.h"
 using namespace std;
 
@@ -28,6 +29,9 @@ int main(int argc, char** argv){
     read_csv_records(csv_file, &records);
     char* id_temp =(char*)malloc(ATTRIBUTE_SIZE);
 
+    struct timeb t;
+    ftime(&t);
+    long start = t.time + t.millitm;
     Heapfile* heapfile = (Heapfile*)malloc(sizeof(Heapfile));
     
     for(int i = 0; i < ATTRIBUTE_NUM; i++){
@@ -48,20 +52,21 @@ int main(int argc, char** argv){
             Record record;
             record.push_back(id_temp);
             record.push_back(records.at(m)->at(i));
-            cout << "Record size is " << record.size() << endl;
+            //cout << "Record size is " << record.size() << endl;
             if(add_fixed_len_page(page, &record) == -1){
-               cout << "Page " << pid << "is full after insertion of " << i << " " << m << endl; 
                write_page(page, heapfile, pid);
                pid = alloc_page(heapfile);
                read_page(heapfile, pid, page);
                int second = add_fixed_len_page(page, &record);
-               cout << "Second attempt returns: " << second << endl;
             }
-            cout << "Attribute " << i << " Record " << m << " stored at page: " << pid << endl;
         }
         
         write_page(page, heapfile, pid);
     }
+
+    ftime(&t);
+    long end = t.time + t.millitm;
+    cout << "Time used: " << end-start << " ms." << endl;
     free(id_temp);
     fclose(csv_file);
     return 0;

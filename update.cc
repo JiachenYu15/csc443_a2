@@ -30,8 +30,6 @@ int main(int argc, char** argv){
     PageID pid = atoi(pid_str);
     int slot = atoi(rid_str);
 
-    cout << "The pid is: " << pid << endl;
-    cout << "The slot is: " << slot << endl;
 
     int attribute_id = atoi(argv[3]);
     char* new_value = argv[4];
